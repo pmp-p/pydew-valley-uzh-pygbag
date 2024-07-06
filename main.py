@@ -1,13 +1,30 @@
 import sys
-import pygame
+#import pygbag.aio as asyncio
+
+# /// script
+# dependencies = [
+#  "pygame-ce",
+#  "pytmx",
+# ]
+# ///
+
+
+try:
+    import pygame
+    pygame.init()
+    pygame.font.init()
+except:
+    pygame = None
 
 from src import settings
 from src import support
 from src import level
 from src import main_menu
 
+from gamestates import GameState, Loop, asyncio
 
-class Game:
+
+class Game(GameState):
     def __init__(self):
         self.character_frames: dict[str, settings.AniFrames] | None = None
         self.level_frames: dict | None = None
@@ -53,13 +70,10 @@ class Game:
 
         self.font = support.import_font(30, 'font/LycheeSoda.ttf')
 
-    def run(self):
-        while self.running:
-            dt = self.clock.tick() / 1000
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
+
+    def draw(self, events):
+        dt = self.clock.tick() / 1000
+        for event in events:
             keys = pygame.key.get_just_pressed()
             self.screen.fill('gray')
             self.level.update(dt)
@@ -94,49 +108,76 @@ class Game:
                     self.settings_menu = False
                     pause_menu.pressed_settings = False
 
-            pygame.display.update()
 
 
-class MainMenu:
-    def __init__(self):
-        self.menu = True
-        self.screen = pygame.display.set_mode((
-            settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT,
-        ))
+
+class MainMenu_view(GameState):
+    if pygame:
         pygame.init()
-        self.font = support.import_font(30, 'font/LycheeSoda.ttf')
-        pygame.display.set_caption('PyDew')
-        self.clock = pygame.time.Clock()
-        self.sounds = support.sound_importer('audio', default_volume=0.25)
-        self.main_menu = main_menu.main_menu(self.font, self.sounds["music"])
-        self.background = pygame.image.load("images/menu_background/bg.png")
-        self.background = pygame.transform.scale(
-            self.background, (settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT))
-        self.game = Game(self)
 
-    def run(self):
-        while self.menu:
+        font = support.import_font(30, 'font/LycheeSoda.ttf')
+        pygame.display.set_caption('PyDew')
+        clock = pygame.time.Clock()
+        sounds = support.sound_importer('audio', default_volume=0.25)
+        main_menu = main_menu.main_menu(font, sounds["music"])
+        background = pygame.image.load("images/menu_background/bg.png")
+
+        #pygame.mixer.music.load("music/Pytheme_Has_Feelings_Too.ogg")
+        #pygame.mixer.music.play()
+
+
+        pygame.display.init()
+
+        GameState.screen = pygame.display.set_mode([1024,600])
+
+
+        def __init__(self):
+            self.background = pygame.transform.scale(
+                self.background, (settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT)
+            )
+            self.main_menu.display_surface = self.screen
+
+        def draw(self, events):
             dt = self.clock.tick() / 1000  # noqa: F841
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
+
+            self.screen.blit(self.background, (0, 0))
+
+            self.main_menu.update()
+
             if self.main_menu.pressed_play:
                 self.sounds["music"].stop()
                 self.main_menu.pressed_play = False
-                self.game.running = True
-                self.game.run()
-                self.menu = False
+                Loop.instance.set_state(Game)
+
             elif self.main_menu.pressed_quit:
-                self.main_menu.pressed_quit = False
-                self.menu = False
-                pygame.quit()
-                sys.exit()
-            self.screen.blit(self.background, (0, 0))
-            self.main_menu.update()
-            pygame.display.update()
+                Loop.instance.set_state(state_quit)
+
+# logic
+class MainMenu(MainMenu_view):
+    pass
+
+# special handler to call directly if not handled by a state.
+
+async def async_quit():
+    print("ASYNC QUIT")
+    pygame.mixer.music.stop()
+
+
+def state_quit(events):
+    Loop.close()
+
+
+def events_generator(*any):
+    events = pygame.event.get()
+    for event in events:
+        if event.type == pygame.QUIT:
+            self.set_state(state_quit)
+            return
+
+    pygame.display.update()
+    return events
 
 
 if __name__ == '__main__':
-    game = MainMenu()
-    game.run()
+    asyncio.run(Loop.start(MainMenu, events_generator, async_quit))
+

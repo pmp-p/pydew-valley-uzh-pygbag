@@ -22,6 +22,7 @@ def resource_path(relative_path: str):
 
 # Might be changed later on if we use pygame.freetype instead
 def import_font(size: int, font_path: str) -> pygame.font.Font:
+
     return pygame.font.Font(resource_path(font_path), size)
 
 
