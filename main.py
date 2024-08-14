@@ -2,6 +2,7 @@
 # dependencies = [
 #  "pygame-ce",
 #  "pytmx",
+#  "pathfinding",
 # ]
 # ///
 
