@@ -27,9 +27,7 @@ class Description:
         # description
         self.description_rect = pygame.Rect(0, 0, 600, 400)
         self.description_rect.topright = self.rect.topright
-        self.description_surface = pygame.Surface(
-            self.description_rect.size, pygame.SRCALPHA
-        )
+        self.description_surface = pygame.Surface(self.description_rect.size, pygame.SRCALPHA)
 
         # slider
         self.description_slider_surface = pygame.Surface((600, 600), pygame.SRCALPHA)
@@ -61,8 +59,8 @@ class Description:
 
     # draw
     def make_surface_transparent(self):
-        self.description_surface.fill(pygame.Color(0, 0, 0, 0))
-        self.description_slider_surface.fill(pygame.Color(0, 0, 0, 0))
+        self.description_surface.fill((255, 255, 255, 0))
+        self.description_slider_surface.fill((255, 255, 255, 0))
 
     def draw_slider_bar(self):
         height1 = self.description_slider_surface.get_height()
@@ -117,7 +115,7 @@ class KeybindsDescription(Description):
     def create_keybinds(self):
         margin = 10
         size = (600, 60 * self.controls.length() + 2 * margin)
-        self.description_slider_surface = pygame.Surface(size, pygame.SRCALPHA)
+        self.description_slider_surface = pygame.Surface((size), pygame.SRCALPHA)
         rect = self.description_slider_surface.get_rect()
         self.description_slider_rect = rect
 
@@ -140,11 +138,7 @@ class KeybindsDescription(Description):
 
     # events
     def handle_event(self, event: pygame.event.Event) -> bool:
-        return (
-            super().handle_event(event)
-            or self.set_key(event)
-            or self.handle_click(event)
-        )
+        return super().handle_event(event) or self.set_key(event) or self.handle_click(event)
 
     def reset(self):
         super().reset()
@@ -345,10 +339,6 @@ class VolumeDescription(Description):
             or self.sound_slider.handle_event(event)
             or self.sfx_slider.handle_event(event)
         )
-
-    def reset_volumes(self):
-        self.sound_slider.set_value(50)
-        self.sfx_slider.set_value(50)
 
     def update_music(self, value):
         self.sounds["music"].set_volume(min((value / 1000), 0.4))

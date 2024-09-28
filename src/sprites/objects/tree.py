@@ -87,16 +87,14 @@ class Tree(CollideableMapObject):
             pos = self.rect.center
             self.drops_manager.drop(pos, InventoryResource.WOOD, amount=5)
             if self.fruit_type:
-                self.drops_manager.drop(
-                    pos, self.fruit_type, amount=len(self.fruit_sprites)
-                )
+                self.drops_manager.drop(pos, self.fruit_type, amount=len(self.fruit_sprites))
 
         self.image = generate_particle_surf(self.image)
         for fruit in self.fruit_sprites:
             fruit.image = generate_particle_surf(fruit.image)
         self.timer.activate()
 
-    def draw(self, display_surface: pygame.Surface, rect: pygame.Rect, camera):
-        super().draw(display_surface, rect, camera)
+    def draw(self, display_surface, offset):
+        super().draw(display_surface, offset)
         for fruit in self.fruit_sprites:
-            fruit.draw(display_surface, camera.apply(fruit), camera)
+            fruit.draw(display_surface, offset)

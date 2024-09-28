@@ -68,9 +68,7 @@ class _Hitbox:
         """
         self._state_exceptions[state] = rect
 
-    def set_exception(
-        self, state: EntityState, direction: Direction, rect: pygame.Rect
-    ) -> None:
+    def set_exception(self, state: EntityState, direction: Direction, rect: pygame.Rect) -> None:
         """
         Tell the class, in which state a hitbox should be used that differs
         from the default one.
@@ -202,12 +200,8 @@ def setup_entity_assets():
     rabbit_hitbox = _Hitbox(pygame.Rect(18, 26, 12, 6))
     rabbit_hitbox.set_direction_exception(Direction.LEFT, pygame.Rect(20, 26, 8, 6))
     rabbit_hitbox.set_direction_exception(Direction.RIGHT, pygame.Rect(20, 26, 8, 6))
-    rabbit_hitbox.set_exception(
-        EntityState.AXE, Direction.LEFT, pygame.Rect(24, 26, 8, 6)
-    )
-    rabbit_hitbox.set_exception(
-        EntityState.AXE, Direction.RIGHT, pygame.Rect(16, 26, 8, 6)
-    )
+    rabbit_hitbox.set_exception(EntityState.AXE, Direction.LEFT, pygame.Rect(24, 26, 8, 6))
+    rabbit_hitbox.set_exception(EntityState.AXE, Direction.RIGHT, pygame.Rect(16, 26, 8, 6))
 
     rabbit_asset = entity_importer(
         path=resource_path("images/characters/rabbit"),

@@ -8,9 +8,7 @@ from src.timer import Timer
 
 
 class Transition:
-    def __init__(
-        self, reset: Callable[[], None], finish_reset: Callable[[], None], dur: int
-    ):
+    def __init__(self, reset: Callable[[], None], finish_reset: Callable[[], None], dur: int):
         # setup
         self.display_surface = pygame.display.get_surface()
         self.reset = reset
@@ -53,6 +51,4 @@ class Transition:
     def draw(self):
         if self.timer:
             self.image.fill(self.curr_color)
-            self.display_surface.blit(
-                self.image, (0, 0), special_flags=pygame.BLEND_RGBA_MULT
-            )
+            self.display_surface.blit(self.image, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)

@@ -7,11 +7,11 @@ import pygame
 from pathfinding.core.grid import Grid
 from pathfinding.finder.a_star import AStarFinder
 
-from src.npc.bases.ai_behaviour import AIBehaviour
 from src.npc.bases.animal import Animal
+from src.npc.behaviour.ai_behaviour import AIBehaviour
 from src.npc.behaviour.ai_behaviour_tree_base import ContextType
 from src.settings import Coordinate
-from src.sprites.entities.character import Character
+from src.sprites.character import Character
 from src.sprites.setup import EntityAsset
 
 
@@ -46,5 +46,5 @@ class CowBase(Animal, AIBehaviour, ABC):
         self.speed = 150
 
     @abstractmethod
-    def flee_from_pos(self, pos: tuple[int, int], pf_grid: Grid = None) -> bool:
+    def flee_from_pos(self, pos: tuple[int, int]) -> bool:
         pass

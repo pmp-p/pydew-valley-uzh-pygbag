@@ -4,7 +4,6 @@ import pygame
 from pygame.math import Vector2 as vector
 from pygame.mouse import get_pos as mouse_pos
 
-from src.colors import SL_ORANGE_BRIGHT, SL_ORANGE_BRIGHTER, SL_ORANGE_BRIGHTEST
 from src.controls import Control
 from src.support import resource_path
 
@@ -145,9 +144,7 @@ class Button(AbstractButton):
                     "Normal buttons can only contain text, use ImageButton"
                     " if you need to display an image instead"
                 )
-            raise TypeError(
-                f"expected a value of type 'str', got '{content.__class__.__name__}'"
-            )
+            raise TypeError(f"expected a value of type 'str', got '{content.__class__.__name__}'")
 
         # Setup
         super().__init__(content, rect, font)
@@ -294,17 +291,17 @@ class Slider:
         value = self.value - self.min_value
         diff = self.max_value - self.min_value
         knob_x = self.rect.left + (self.rect.width - 10) * value / diff
-        color = SL_ORANGE_BRIGHTER
+        color = (232, 207, 166)
         center = (int(knob_x), self.rect.centery)
         pygame.draw.circle(self.surface, color, center, self.knob_radius)
 
     def draw_rect(self):
         # border
-        border_color = SL_ORANGE_BRIGHT
+        border_color = (220, 185, 138)
         pygame.draw.rect(self.surface, border_color, self.rect, 0, 4)
 
         # bg
-        bg_color = SL_ORANGE_BRIGHTEST
+        bg_color = (243, 229, 194)
         rect = self.rect.inflate(-4, -4)
         pygame.draw.rect(self.surface, bg_color, rect, 0, 4)
 

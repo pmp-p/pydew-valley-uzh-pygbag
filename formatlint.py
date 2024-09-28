@@ -45,9 +45,7 @@ def run_command(command, description, index):
     return_code = process.poll()
 
     if return_code == 0:
-        print(
-            f"{GRAY}└── {GREEN}{description} [{command}] completed successfully.{RESET}"
-        )
+        print(f"{GRAY}└── {GREEN}{description} [{command}] completed successfully.{RESET}")
     else:
         print(
             f"{GRAY}└── {RED}{description} [{command}] failed with return code {return_code}.{RESET}"

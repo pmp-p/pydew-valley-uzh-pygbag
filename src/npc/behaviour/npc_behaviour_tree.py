@@ -17,7 +17,6 @@ from src.npc.behaviour.ai_behaviour_tree_base import (
     Selector,
     Sequence,
 )
-from src.npc.utils import pf_move_to, pf_wander
 from src.settings import SCALED_TILE_SIZE
 from src.sprites.objects.tree import Tree
 from src.support import distance, near_tiles
@@ -44,7 +43,7 @@ def walk_to_pos(
     if target_position in NPCSharedContext.targets:
         return False
 
-    if pf_move_to(context.npc, target_position):
+    if context.npc.create_path_to_tile(target_position):
         if len(context.npc.pf_path) > 1:
             facing = (
                 context.npc.pf_path[-1][0] - context.npc.pf_path[-2][0],
@@ -52,10 +51,8 @@ def walk_to_pos(
             )
         else:
             facing = (
-                context.npc.pf_path[-1][0]
-                - context.npc.rect.centerx / SCALED_TILE_SIZE,
-                context.npc.pf_path[-1][1]
-                - context.npc.rect.centery / SCALED_TILE_SIZE,
+                context.npc.pf_path[-1][0] - context.npc.rect.centerx / SCALED_TILE_SIZE,
+                context.npc.pf_path[-1][1] - context.npc.rect.centery / SCALED_TILE_SIZE,
             )
 
         facing = (facing[0], 0) if abs(facing[0]) > abs(facing[1]) else (0, facing[1])
@@ -80,7 +77,20 @@ def walk_to_pos(
 
 
 def wander(context: NPCIndividualContext) -> bool:
-    return pf_wander(context.npc)
+    """
+
+    Makes the NPC wander to a random location in a 5 tile radius.
+    :return: True if path has successfully been created, otherwise False
+    """
+
+    # current NPC position on the tilemap
+    tile_coord = context.npc.get_tile_pos()
+
+    for pos in near_tiles(tile_coord, 3, shuffle=True):
+        if context.npc.create_path_to_tile(pos):
+            return True
+
+    return False
 
 
 # region farming-exclusive logic
@@ -96,7 +106,7 @@ def will_harvest_plant(context: NPCIndividualContext) -> bool:
     """
     :return: True: harvestable plants available AND 1/3, otherwise False
     """
-    return len(context.npc.soil_area.harvestable_tiles) and random.randint(0, 2) == 2
+    return len(context.npc.soil_layer.harvestable_tiles) and random.randint(0, 2) == 2
 
 
 def harvest_plant(context: NPCIndividualContext) -> bool:
@@ -106,7 +116,7 @@ def harvest_plant(context: NPCIndividualContext) -> bool:
     :return: True if such a Tile has been found and the NPC successfully
              created a path towards it, otherwise False
     """
-    soil_layer = context.npc.soil_area
+    soil_layer = context.npc.soil_layer
     if not len(soil_layer.harvestable_tiles):
         return False
 
@@ -114,15 +124,11 @@ def harvest_plant(context: NPCIndividualContext) -> bool:
 
     tile_coord = context.npc.get_tile_pos()
 
-    loop_count = 0
     for pos in near_tiles(tile_coord, radius, shuffle=True):
         if pos in soil_layer.harvestable_tiles:
             path_created = walk_to_pos(context, pos)
             if path_created:
                 return True
-            loop_count += 1
-            if loop_count > 5:
-                break
 
     return False
 
@@ -132,7 +138,7 @@ def will_create_new_farmland(context: NPCIndividualContext) -> bool:
     :return: True: untilled farmland available AND
     (all other farmland planted and watered OR 1/3), otherwise False
     """
-    soil_layer = context.npc.soil_area
+    soil_layer = context.npc.soil_layer
 
     if not len(soil_layer.untilled_tiles):
         return False
@@ -153,7 +159,7 @@ def create_new_farmland(context: NPCIndividualContext) -> bool:
     :return: True if such a Tile has been found and the NPC successfully
              created a path towards it, otherwise False
     """
-    if not len(context.npc.soil_area.untilled_tiles):
+    if not len(context.npc.soil_layer.untilled_tiles):
         return False
 
     radius = 5
@@ -165,8 +171,8 @@ def create_new_farmland(context: NPCIndividualContext) -> bool:
     coords = []
 
     for pos in near_tiles(tile_coord, radius):
-        if pos in context.npc.soil_area.untilled_tiles:
-            if context.npc.soil_area.tiles.get(pos).pf_weight:
+        if pos in context.npc.soil_layer.untilled_tiles:
+            if context.npc.soil_layer.tiles.get(pos).pf_weight:
                 weighted_coords.append(pos)
             else:
                 coords.append(pos)
@@ -179,9 +185,7 @@ def create_new_farmland(context: NPCIndividualContext) -> bool:
     for pos in coords:
         w_coords.append((7 * len(coords), pos))
 
-    order = sorted(
-        range(len(w_coords)), key=lambda i: random.random() ** (1.0 / w_coords[i][0])
-    )
+    order = sorted(range(len(w_coords)), key=lambda i: random.random() ** (1.0 / w_coords[i][0]))
 
     def on_path_completion():
         context.npc.tool_active = True
@@ -189,28 +193,18 @@ def create_new_farmland(context: NPCIndividualContext) -> bool:
         context.npc.tool_index = context.npc.current_tool.value - 1
         context.npc.frame_index = 0
 
-    loop_count = 0
     for pos in order:
-        path_created = walk_to_pos(
-            context, w_coords[pos][1], on_path_completion=on_path_completion
-        )
+        path_created = walk_to_pos(context, w_coords[pos][1], on_path_completion=on_path_completion)
         if path_created:
             return True
-        loop_count += 1
-        if loop_count > 5:
-            break
 
-    loop_count = 0
     for pos in sorted(
-        context.npc.soil_area.untilled_tiles,
+        context.npc.soil_layer.untilled_tiles,
         key=lambda tile: distance(tile, tile_coord),
     ):
         path_created = walk_to_pos(context, pos, on_path_completion=on_path_completion)
         if path_created:
             return True
-        loop_count += 1
-        if loop_count > 5:
-            break
 
     return False
 
@@ -220,7 +214,7 @@ def will_plant_tilled_farmland(context: NPCIndividualContext) -> bool:
     :return: True if unplanted farmland available AND
     (all other farmland watered OR 3/4), otherwise False
     """
-    soil_layer = context.npc.soil_area
+    soil_layer = context.npc.soil_layer
 
     if not len(soil_layer.unplanted_tiles):
         return False
@@ -240,7 +234,7 @@ def plant_adjacent_or_random_seed(context: NPCIndividualContext) -> bool:
     :return: True if such a Tile has been found and the NPC successfully
              created a path towards it, otherwise False
     """
-    soil_layer = context.npc.soil_area
+    soil_layer = context.npc.soil_layer
 
     if not len(soil_layer.unplanted_tiles):
         return False
@@ -287,9 +281,7 @@ def plant_adjacent_or_random_seed(context: NPCIndividualContext) -> bool:
         # If no adjacent seed type has been found, the type with that has
         # been planted the least is used
         if not seed_type:
-            seed_type = min(
-                SeedType, key=lambda x: soil_layer.planted_types[x]
-            ).as_fts()
+            seed_type = min(SeedType, key=lambda x: soil_layer.planted_types[x]).as_fts()
 
         context.npc.current_seed = seed_type
         context.npc.seed_index = (
@@ -297,30 +289,16 @@ def plant_adjacent_or_random_seed(context: NPCIndividualContext) -> bool:
         )
         context.npc.use_tool(ItemToUse.SEED)
 
-    # FIXME: Since path generation has a high performance impact the maximum loop count
-    #  is limited to 10. Removing this can cause the game to stutter
-    loop_count = 0
     for pos in near_tiles(tile_coord, radius, shuffle=True):
         if pos in soil_layer.unplanted_tiles:
-            path_created = walk_to_pos(
-                context, pos, on_path_completion=on_path_completion
-            )
+            path_created = walk_to_pos(context, pos, on_path_completion=on_path_completion)
             if path_created:
                 return True
-            loop_count += 1
-            if loop_count > 5:
-                break
 
-    loop_count = 0
-    for pos in sorted(
-        soil_layer.unplanted_tiles, key=lambda tile: distance(tile, tile_coord)
-    ):
+    for pos in sorted(soil_layer.unplanted_tiles, key=lambda tile: distance(tile, tile_coord)):
         path_created = walk_to_pos(context, pos, on_path_completion=on_path_completion)
         if path_created:
             return True
-        loop_count += 1
-        if loop_count > 5:
-            break
 
     return False
 
@@ -332,7 +310,7 @@ def water_farmland(context: NPCIndividualContext) -> bool:
     :return: True if such a Tile has been found and the NPC successfully
              created a path towards it, otherwise False
     """
-    soil_layer = context.npc.soil_area
+    soil_layer = context.npc.soil_layer
     if not len(soil_layer.unwatered_tiles):
         return False
 
@@ -346,28 +324,16 @@ def water_farmland(context: NPCIndividualContext) -> bool:
         context.npc.tool_index = context.npc.current_tool.value - 1
         context.npc.frame_index = 0
 
-    loop_count = 0
     for pos in near_tiles(tile_coord, radius):
         if pos in soil_layer.unwatered_tiles:
-            path_created = walk_to_pos(
-                context, pos, on_path_completion=on_path_completion
-            )
+            path_created = walk_to_pos(context, pos, on_path_completion=on_path_completion)
             if path_created:
                 return True
-            loop_count += 1
-            if loop_count > 5:
-                break
 
-    loop_count = 0
-    for pos in sorted(
-        soil_layer.unwatered_tiles, key=lambda tile: distance(tile, tile_coord)
-    ):
+    for pos in sorted(soil_layer.unwatered_tiles, key=lambda tile: distance(tile, tile_coord)):
         path_created = walk_to_pos(context, pos, on_path_completion=on_path_completion)
         if path_created:
             return True
-        loop_count += 1
-        if loop_count > 5:
-            break
 
     return False
 

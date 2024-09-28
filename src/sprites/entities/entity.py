@@ -128,9 +128,7 @@ class Entity(CollideableSprite, ABC):
             self.state = EntityState.IDLE
 
     def get_facing_direction(self):
-        self.facing_direction = get_entity_facing_direction(
-            self.direction, self.facing_direction
-        )
+        self.facing_direction = get_entity_facing_direction(self.direction, self.facing_direction)
         self._update_axe_hitbox()
 
     def get_target_pos(self):
@@ -138,8 +136,8 @@ class Entity(CollideableSprite, ABC):
 
     def get_tile_pos(self) -> tuple[int, int]:
         return (
-            int(self.hitbox_rect.centerx / SCALED_TILE_SIZE),
-            int(self.hitbox_rect.centery / SCALED_TILE_SIZE),
+            int(self.rect.centerx / SCALED_TILE_SIZE),
+            int(self.rect.centery / SCALED_TILE_SIZE),
         )
 
     def focus(self):
@@ -153,15 +151,6 @@ class Entity(CollideableSprite, ABC):
         if self.focused_indicator:
             self.focused_indicator.kill()
             self.focused_indicator = None
-
-    def teleport(self, pos: tuple[float, float]):
-        """
-        Moves the Entity rect directly to the specified point
-        """
-        self.rect.update(
-            (pos[0] - self.rect.width / 2, pos[1] - self.rect.height / 2),
-            self.rect.size,
-        )
 
     @abstractmethod
     def move(self, dt: float):
@@ -221,7 +210,7 @@ class Entity(CollideableSprite, ABC):
         self.get_state()
         self.get_facing_direction()
 
-    def _do_common_update_ops(self):
+    def update(self, dt: float):
         self._prepare_for_update()
 
         if self.focused_indicator:
@@ -232,15 +221,6 @@ class Entity(CollideableSprite, ABC):
                 ),
                 self.focused_indicator.rect.size,
             )
-
-    def update(self, dt: float):
-        self._do_common_update_ops()
         self.move(dt)
-        self.animate(dt)
-        self.image = self._current_frame
-
-    def update_blocked(self, dt):
-        """Only used when cutscenes are run, and entities are not meant to move."""
-        self._do_common_update_ops()
         self.animate(dt)
         self.image = self._current_frame

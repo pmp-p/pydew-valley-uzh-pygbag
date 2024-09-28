@@ -15,19 +15,11 @@ class TestEventExpansion(unittest.TestCase):
     def setUp(self):
         try:
             self.test_event_type = src.events.create_custom_event_type("TestEventType")
-            self.evt_one_attr = src.events.create_custom_event_type(
-                "EvtOneAttr", attr1=int
-            )
-            self.evt_union = src.events.create_custom_event_type(
-                "EvtUnion", attr1=IntOrStr
-            )
-            self.evt_optional = src.events.create_custom_event_type(
-                "EvtOptional", attr1=int | None
-            )
+            self.evt_one_attr = src.events.create_custom_event_type("EvtOneAttr", attr1=int)
+            self.evt_union = src.events.create_custom_event_type("EvtUnion", attr1=IntOrStr)
+            self.evt_optional = src.events.create_custom_event_type("EvtOptional", attr1=int | None)
         except ValueError:
-            self.test_event_type = src.events.get_event_def_from_name(
-                "TestEventType"
-            ).code
+            self.test_event_type = src.events.get_event_def_from_name("TestEventType").code
             self.evt_one_attr = src.events.get_event_def_from_name("EvtOneAttr").code
             self.evt_union = src.events.get_event_def_from_name("EvtUnion").code
             self.evt_optional = src.events.get_event_def_from_name("EvtOptional").code
@@ -65,9 +57,7 @@ class TestEventExpansion(unittest.TestCase):
         self.assertIn(result_event, pygame.event.get(), "event was not posted")
 
     def test_evt_type_one_attr_wrong_type(self):
-        self.assertRaises(
-            TypeError, src.events.post_event, self.evt_one_attr, attr1="wrong type"
-        )
+        self.assertRaises(TypeError, src.events.post_event, self.evt_one_attr, attr1="wrong type")
 
     def test_evt_type_one_attr_arg_missing(self):
         self.assertRaises(TypeError, src.events.post_event, self.evt_one_attr)

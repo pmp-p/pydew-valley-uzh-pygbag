@@ -1,6 +1,14 @@
+import logging
+
+LOG = logging.getLogger(__name__)
+
 import pygame  # noqa
 import pygame.freetype
+
+LOG.info("Importing pytmx...")
 import pytmx
+
+LOG.info("pytmx imported.")
 
 from src.enums import Map
 from src.import_checks import *  # noqa: F403
@@ -10,10 +18,6 @@ type SoundDict = dict[str, pygame.mixer.Sound]
 type MapDict = dict[str, pytmx.TiledMap]
 type AniFrames = dict[str, list[pygame.Surface]]
 type GogglesStatus = bool | None
-type NecklaceStatus = bool | None
-type HatStatus = bool | None
-type HornStatus = bool | None
-type OutgroupSkinStatus = bool | None
 
 SCREEN_WIDTH, SCREEN_HEIGHT = 1280, 720
 TILE_SIZE = 16
@@ -21,9 +25,9 @@ CHAR_TILE_SIZE = 48
 SCALE_FACTOR = 4
 SCALED_TILE_SIZE = TILE_SIZE * SCALE_FACTOR
 
-GAME_MAP = Map.NEW_FARM
+GAME_MAP = Map.FOREST
 
-ENABLE_NPCS = True
+ENABLE_NPCS = False
 TEST_ANIMALS = False
 
 SETUP_PATHFINDING = any((ENABLE_NPCS, TEST_ANIMALS))
@@ -46,6 +50,3 @@ APPLE_POS = {
 
 CHARS_PER_LINE = 45
 TB_SIZE = (493, 264)
-
-HEALTH_DECAY_VALUE = 0.002
-BATH_STATUS_TIMEOUT = 30

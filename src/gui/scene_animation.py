@@ -1,52 +1,33 @@
 import time
-from typing import Iterable
 
 import pygame
 
-from src.camera.camera_target import CameraTarget
-
 
 class SceneAnimation:
-    def __init__(self, targets: list[CameraTarget]):
-        self.targets = targets
+    def __init__(self, target_points, speeds=None, pauses=None):
+        self.target_points = target_points
+        self.speeds = speeds if speeds else [200] * (len(target_points) - 1)
+        self.pauses = pauses if pauses else [0] * len(target_points)
         self.current_index = 0
-        # This is used so the camera can focus on the desired area instead of the player
-        self.rect = pygame.FRect(0, 0, 8, 8)
-        self.current_pos = pygame.Vector2(targets[0].pos if targets else (0, 0))
-        self.rect.center = self.current_pos
-        self.active = False
+        self.current_pos = pygame.Vector2(target_points[0])
+        self.is_finished = False
         self.pause_start_time = None
 
     def get_current_position(self):
         return self.current_pos
 
-    def clear(self):
-        self.targets.clear()
-
-    def set_target_points(self, targets: Iterable[CameraTarget]):
-        self.targets.clear()
-        self.targets.extend(targets)
-        self.reset()
-
-    def start(self):
-        if not self.targets:
-            return
-        self.active = True
-
     def reset(self):
         self.current_index = 0
-        if self.targets:
-            self.rect.center = self.targets[0].pos
-            self.current_pos = pygame.Vector2(self.targets[0].pos)
-        self.active = False
+        self.current_pos = pygame.Vector2(self.target_points[0])
+        self.is_finished = False
         self.pause_start_time = None
 
     def pause_active(self):
         return self.pause_start_time is not None
 
-    def pause_not_finished(self):
+    def is_remaining_pause_time(self):
         elapsed_pause_time = time.time() - self.pause_start_time
-        pause_duration = self.targets[self.current_index].pause
+        pause_duration = self.pauses[self.current_index]
         return elapsed_pause_time < pause_duration
 
     def reset_pause(self):
@@ -54,38 +35,33 @@ class SceneAnimation:
         self.current_index += 1
 
     def move_towards_target(self, dt):
-        current_target = self.targets[self.current_index]
-        target_pos = pygame.Vector2(current_target.pos)
-        direction = target_pos - self.current_pos
+        target = pygame.Vector2(self.target_points[self.current_index])
+        direction = target - self.current_pos
         distance_to_target = direction.length()
 
-        if distance_to_target <= current_target.speed * dt:
-            self.rect.center = self.current_pos = target_pos
+        if distance_to_target <= self.speeds[self.current_index - 1] * dt:
+            self.current_pos = target
             self.pause_start_time = time.time()
         else:
             direction = direction.normalize()
-            self.current_pos += direction * current_target.speed * dt
-            self.rect.center = self.current_pos
+            self.current_pos += direction * self.speeds[self.current_index - 1] * dt
 
     def has_more_targets(self):
-        return self.current_index < len(self.targets)
-
-    __bool__ = has_more_targets
+        return self.current_index < len(self.target_points)
 
     def animate(self, dt):
-        if not self.active:
+        if self.is_finished:
             return
 
         if self.pause_active():
-            if self.pause_not_finished():
+            if self.is_remaining_pause_time():
                 return
             self.reset_pause()
 
         if self.has_more_targets():
             self.move_towards_target(dt)
         else:
-            self.active = False
-            self.reset()
+            self.is_finished = True
 
     def update(self, dt):
         self.animate(dt)

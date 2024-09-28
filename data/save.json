@@ -12,49 +12,10 @@
     "wood": 26,
     "apple": 24,
     "corn": 32,
-    "tomato_seed": 4,
     "__InventoryResource__": [
       "wood",
       "apple",
-      "corn",
-      "tomato_seed"
+      "corn"
     ]
-  },
-  "soil_data": [
-    {
-      "watered": false,
-      "pos": [
-        61,
-        27
-      ],
-      "plant_info": null
-    },
-    {
-      "watered": false,
-      "pos": [
-        59,
-        28
-      ],
-      "plant_info": null
-    },
-    {
-      "watered": true,
-      "pos": [
-        60,
-        28
-      ],
-      "plant_info": null
-    },
-    {
-      "watered": false,
-      "pos": [
-        61,
-        28
-      ],
-      "plant_info": {
-        "plant_type": 1,
-        "age": 0
-      }
-    }
-  ]
+  }
 }

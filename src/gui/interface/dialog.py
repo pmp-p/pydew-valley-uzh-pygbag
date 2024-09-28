@@ -1,9 +1,11 @@
+import json
 import textwrap
 from operator import attrgetter
 
 import pygame
 
-from src import utils
+# from jsmin import jsmin  # JSON minifier function (removes comments, notably)
+
 from src.enums import Layer
 from src.settings import CHARS_PER_LINE, SCREEN_HEIGHT, SCREEN_WIDTH, TB_SIZE
 from src.sprites.base import Sprite
@@ -24,9 +26,7 @@ class TextBox(Sprite):
     _TB_IMAGE: pygame.Surface | None = None
 
     @classmethod
-    def prepare_base_tb_image(
-        cls, cname_surf: pygame.Surface, txt_surf: pygame.Surface
-    ):
+    def prepare_base_tb_image(cls, cname_surf: pygame.Surface, txt_surf: pygame.Surface):
         if cls._TB_IMAGE is not None:
             return
         cls._TB_IMAGE = pygame.Surface(TB_SIZE, flags=pygame.SRCALPHA)
@@ -35,6 +35,7 @@ class TextBox(Sprite):
         end = txt_surf.subsurface(cls._TXT_SURF_EXTREMITIES[1])
         txt_part_top = 64
         blit_list = [
+            # (start, pygame.Rect(0, txt_part_top, *start.size)),
             (start, pygame.Rect(0, txt_part_top, *start.get_size())),
             (end, pygame.Rect(373, txt_part_top, *end.get_size())),
             *(
@@ -57,9 +58,7 @@ class TextBox(Sprite):
         self.image: pygame.Surface = pygame.Surface(TB_SIZE, flags=pygame.SRCALPHA)
         self.__prepare_image()
         self._tmp_img: pygame.Surface = self._TB_IMAGE.copy()
-        cname: pygame.Surface = self.font.render(
-            character_name, True, color=pygame.Color("black")
-        )
+        cname: pygame.Surface = self.font.render(character_name, True, color=pygame.Color("black"))
         cname_rect: pygame.Rect = cname.get_rect(center=self._CNAME_SURF_RECT.center)
         self._tmp_img.blit(cname, cname_rect)
         self._fin_img: pygame.Surface = self.image
@@ -130,7 +129,7 @@ class TextBox(Sprite):
         ]
         self.image.fblits(blit_list)
 
-    def draw(self, display_surface: pygame.Surface, rect: pygame.Rect, camera):
+    def draw(self, display_surface: pygame.Surface, offset: pygame.Vector2):
         display_surface.blit(self.image, self.rect)
 
 
@@ -147,15 +146,11 @@ class DialogueManager:
         # Open the dialogues file and dump all of its content in here,
         # while purging the raw file content from its comments.
         with open(resource_path("data/dialogues.json"), "r") as dialogue_file:
-            self.dialogues: dict[str, list[list[str, str]]] = utils.json_loads(
-                dialogue_file.read()
-            )
+            self.dialogues: dict[str, list[list[str, str]]] = json.loads(dialogue_file.read())
         self._tb_list: list[TextBox] = []
         self._msg_index: int = 0
         self._showing_dialogue: bool = False
-        self.font: pygame.Font = pygame.font.Font(
-            resource_path("font/LycheeSoda.ttf"), 20
-        )
+        self.font: pygame.Font = pygame.font.Font(resource_path("font/LycheeSoda.ttf"), 20)
 
     showing_dialogue = property(attrgetter("_showing_dialogue"))
 

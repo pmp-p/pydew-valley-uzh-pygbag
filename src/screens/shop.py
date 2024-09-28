@@ -13,9 +13,7 @@ from src.sprites.entities.player import Player
 
 
 class ShopMenu:
-    def __init__(
-        self, player: Player, switch_screen: Callable[[GameState], None], font
-    ):
+    def __init__(self, player: Player, switch_screen: Callable[[GameState], None], font):
         # general setup
 
         self.buy_text = font.render("buy", False, "Black")
@@ -41,9 +39,7 @@ class ShopMenu:
 
     def display_money(self):
         text_surf = self.font.render(f"${self.player.money}", False, "Black")
-        text_rect = text_surf.get_frect(
-            midbottom=(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 20)
-        )
+        text_rect = text_surf.get_frect(midbottom=(SCREEN_WIDTH / 2, SCREEN_HEIGHT - 20))
 
         pygame.draw.rect(self.display_surface, "White", text_rect.inflate(10, 10), 0, 4)
         self.display_surface.blit(text_surf, text_rect)
@@ -89,9 +85,7 @@ class ShopMenu:
 
             elif event.key in (pygame.K_DOWN, pygame.K_UP):
                 self.index = (
-                    self.index
-                    + int(event.key == pygame.K_DOWN)
-                    - int(event.key == pygame.K_UP)
+                    self.index + int(event.key == pygame.K_DOWN) - int(event.key == pygame.K_UP)
                 ) % len(self.options)
                 return True
 
@@ -115,24 +109,18 @@ class ShopMenu:
         pygame.draw.rect(self.display_surface, "White", bg_rect, 0, 4)
 
         # text
-        text_rect = text_surf.get_frect(
-            midleft=(self.main_rect.left + 20, bg_rect.centery)
-        )
+        text_rect = text_surf.get_frect(midleft=(self.main_rect.left + 20, bg_rect.centery))
         self.display_surface.blit(text_surf, text_rect)
 
         # amount
         amount_surf = self.font.render(str(amount), False, "Black")
-        amount_rect = amount_surf.get_frect(
-            midright=(self.main_rect.right - 20, bg_rect.centery)
-        )
+        amount_rect = amount_surf.get_frect(midright=(self.main_rect.right - 20, bg_rect.centery))
         self.display_surface.blit(amount_surf, amount_rect)
 
         # selected
         if index == text_index:
             pygame.draw.rect(self.display_surface, "black", bg_rect, 4, 4)
-            pos_rect = self.buy_text.get_frect(
-                midleft=(self.main_rect.left + 250, bg_rect.centery)
-            )
+            pos_rect = self.buy_text.get_frect(midleft=(self.main_rect.left + 250, bg_rect.centery))
             surf = self.buy_text if self.options[index].is_seed() else self.sell_text
             self.display_surface.blit(surf, pos_rect)
 

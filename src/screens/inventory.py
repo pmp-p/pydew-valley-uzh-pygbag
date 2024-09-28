@@ -148,9 +148,7 @@ class InventoryMenu(AbstractMenu):
         generic_rect = pygame.Rect((0, 0), button_size)
         available_width_for_btns = self.size[0] * 2 // 3
         btns_per_line = available_width_for_btns // button_size[0]
-        x_spacing = (available_width_for_btns % button_size[0]) // max(
-            1, btns_per_line - 1
-        )
+        x_spacing = (available_width_for_btns % button_size[0]) // max(1, btns_per_line - 1)
         for button_no, (ir, count) in enumerate(
             filter(_get_resource_count, self._inventory.items())
         ):
@@ -165,9 +163,7 @@ class InventoryMenu(AbstractMenu):
                 self._assignable_irs.add(btn_name)
                 # , _ ,
                 seed = SeedType.from_inventory_resource(ir).as_fts()
-                yield _EquipButton(
-                    calc_img, btn_rect, btn_name, player.current_seed == seed, True
-                )
+                yield _EquipButton(calc_img, btn_rect, btn_name, player.current_seed == seed, True)
             else:
                 yield _IMButton(calc_img, btn_rect, btn_name)
 
@@ -249,18 +245,14 @@ class InventoryMenu(AbstractMenu):
         self._inv_buttons.extend(self._inventory_part_btn_setup(player, _BUTTON_SIZE))
         self._ft_buttons.extend(self._ft_btn_setup(player, _BUTTON_SIZE))
         self._special_btns.extend(self._special_btn_setup(player, _BUTTON_SIZE))
-        self.buttons.extend(
-            chain(self._inv_buttons, self._ft_buttons, self._special_btns)
-        )
+        self.buttons.extend(chain(self._inv_buttons, self._ft_buttons, self._special_btns))
 
     def draw_title(self):
         super().draw_title()
         top = SCREEN_HEIGHT / 20 + 75
         for i, section_name in enumerate(_SECTION_TITLES):
             text_surf = self.font.render(section_name, False, "black")
-            text_rect = text_surf.get_frect(
-                top=top, centerx=(self.rect.width * (i + 1)) / 4
-            )
+            text_rect = text_surf.get_frect(top=top, centerx=(self.rect.width * (i + 1)) / 4)
 
             bg_rect = pygame.Rect(0, 0, text_rect.width + 40, 50)
             bg_rect.center = text_rect.center
@@ -277,21 +269,13 @@ class InventoryMenu(AbstractMenu):
         self._inv_buttons.clear()
         self._ft_buttons.clear()
         self._special_btns.clear()
-        self._inv_buttons.extend(
-            self._inventory_part_btn_setup(self.player, _BUTTON_SIZE)
-        )
+        self._inv_buttons.extend(self._inventory_part_btn_setup(self.player, _BUTTON_SIZE))
         self._ft_buttons.extend(self._ft_btn_setup(self.player, _BUTTON_SIZE))
         self._special_btns.extend(self._special_btn_setup(self.player, _BUTTON_SIZE))
-        self.buttons.extend(
-            chain(self._inv_buttons, self._ft_buttons, self._special_btns)
-        )
+        self.buttons.extend(chain(self._inv_buttons, self._ft_buttons, self._special_btns))
 
     def handle_event(self, event):
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_i:
-                pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
-                self.switch_screen(GameState.PLAY)
-        if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
-                self.switch_screen(GameState.PAUSE)
+                self.switch_screen(GameState.PLAY)

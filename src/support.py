@@ -4,12 +4,18 @@ import os
 import random
 import sys
 from collections.abc import Generator
-from dataclasses import dataclass
 
 import pygame
-import pygame.freetype
-import pygame.gfxdraw
+
+# import pygame.gfxdraw
+import pygame.draw
+import logging
+
+LOG = logging.getLogger(__name__)
+LOG.info("Importing pytmx...")
 import pytmx
+
+LOG.info("pytmx imported.")
 
 from src import settings
 from src.enums import Direction
@@ -18,12 +24,9 @@ from src.settings import SCALE_FACTOR, SCALED_TILE_SIZE, TILE_SIZE, Coordinate
 
 def resource_path(relative_path: str):
     """Get absolute path to resource, works for dev and for PyInstaller"""
-    relative_path = relative_path.replace("/", os.sep)
-
-    # Needed for pygbag runtime environment compatibility:
-    if sys.platform in ("emscripten", "wasm"):
+    if sys.platform in ("emscripten", "wasi"):
         return relative_path
-
+    relative_path = relative_path.replace("/", os.sep)
     try:
         base_path = sys._MEIPASS  # noqa
     except AttributeError:
@@ -34,10 +37,6 @@ def resource_path(relative_path: str):
 # Might be changed later on if we use pygame.freetype instead
 def import_font(size: int, font_path: str) -> pygame.font.Font:
     return pygame.font.Font(resource_path(font_path), size)
-
-
-def import_freetype_font(size: int, font_path: str) -> pygame.font.Font:
-    return pygame.freetype.Font(resource_path(font_path), size)
 
 
 def import_image(img_path: str, alpha: bool = True) -> pygame.Surface:
@@ -75,11 +74,14 @@ def import_folder_dict(fold_path: str) -> dict[str, pygame.Surface]:
 
 
 def tmx_importer(tmx_path: str) -> settings.MapDict:
+    LOG.info("tmx_importer()")
     files = {}
     for folder_path, _, file_names in os.walk(resource_path(tmx_path)):
         for file_name in file_names:
             full_path = os.path.join(folder_path, file_name)
+            LOG.info("tmx_importer(): running load_pygame")
             files[file_name.split(".")[0]] = pytmx.util_pygame.load_pygame(full_path)
+            LOG.info("tmx_importer(): running load_pygame -> DONE")
     return files
 
 
@@ -164,32 +166,26 @@ def screen_to_tile(pos):
     return pos[0] // tile_size, pos[1] // tile_size
 
 
-@dataclass
-class WeightedCoordinate:
-    x: int
-    y: int
-
-    weight: float = 0
-
-
 def get_flight_matrix(
-    pos: tuple[int, int], radius: int
-) -> list[list[WeightedCoordinate]]:
+    pos: tuple[int, int], radius: int, angle: float = math.pi / 2
+) -> list[list[int]]:
     """
-    Returns a matrix with the width and height of radius * 2 + 1, with
-    WeightedCoordinate objects of a weight between 0 and 1, where 0 is the most
-    preferred flight position, and 1 the least preferred flight position.
-
+    Returns a matrix with the width and height of radius * 2 + 1, with a value
+    of 1 if the matrix position can be fled to and 0 if not.
     The position from which the flight is to be started is always in the centre
-    of the matrix, and will have an infinite weight.
-
-    The position of the object to be fled from should be
+    of the matrix. The position of the object to be fled from should be
     relative to the start position, but does not have to be within the
     matrix coordinates.
+
+    TODO: Could be optimised so that instead of a matrix with integer / boolean
+     values a matrix with the weight of each possible position is returned, of
+     which the walkable position with the greatest weight is then fled to.
 
     :param pos: Position of the object that should be fled from
     :param radius: Radius / distance of the flight vector.
                    The returned matrix has a width and height of radius * 2 + 1
+    :param angle: Angle of the flight vector (measured in radians)
+                  Default: PI / 2 (90°)
     :return: Matrix with positions that can be fled to
     """
 
@@ -198,9 +194,11 @@ def get_flight_matrix(
     p1 = (radius, radius)
     p2 = (pos[0] + radius, pos[1] + radius)
 
-    matrix = [
-        [WeightedCoordinate(x, y) for x in range(diameter)] for y in range(diameter)
-    ]
+    matrix = [[0 for _ in range(diameter)] for _ in range(diameter)]
+
+    # For further calculations the angle gets inverted and divided by two
+    # Can probably be optimised
+    angle = math.pi - angle / 2
 
     # The exact angle of the position that should be fled from, measured from
     # the centre of the matrix
@@ -220,26 +218,12 @@ def get_flight_matrix(
             elif distance_ < -math.pi:
                 distance_ = distance_ + (math.pi * 2)
 
-            matrix[y][x].weight = distance(p2, (x, y))
-            matrix[y][x].weight *= abs(distance_ / math.pi)
-
-    matrix[radius][radius].weight = float("inf")
+            if -angle < distance_ < angle:
+                matrix[y][x] = 0
+            else:
+                matrix[y][x] = 1
 
     return matrix
-
-
-def get_sorted_flight_vectors(
-    pos: tuple[int, int], radius: int
-) -> Generator[WeightedCoordinate, None, None]:
-    flight_matrix = get_flight_matrix(pos, radius)
-
-    x = []
-    for row in flight_matrix:
-        for col in row:
-            x.append(col)
-
-    for coord in sorted(x, key=lambda i: i.weight):
-        yield coord
 
 
 def draw_aa_line(
@@ -251,44 +235,31 @@ def draw_aa_line(
     color: tuple[int, int, int],
 ):
     ul = (
-        center_pos[0]
-        + (length / 2.0) * math.cos(deg)
-        - (thickness / 2.0) * math.sin(deg),
-        center_pos[1]
-        + (thickness / 2.0) * math.cos(deg)
-        + (length / 2.0) * math.sin(deg),
+        center_pos[0] + (length / 2.0) * math.cos(deg) - (thickness / 2.0) * math.sin(deg),
+        center_pos[1] + (thickness / 2.0) * math.cos(deg) + (length / 2.0) * math.sin(deg),
     )
     ur = (
-        center_pos[0]
-        - (length / 2.0) * math.cos(deg)
-        - (thickness / 2.0) * math.sin(deg),
-        center_pos[1]
-        + (thickness / 2.0) * math.cos(deg)
-        - (length / 2.0) * math.sin(deg),
+        center_pos[0] - (length / 2.0) * math.cos(deg) - (thickness / 2.0) * math.sin(deg),
+        center_pos[1] + (thickness / 2.0) * math.cos(deg) - (length / 2.0) * math.sin(deg),
     )
     bl = (
-        center_pos[0]
-        + (length / 2.0) * math.cos(deg)
-        + (thickness / 2.0) * math.sin(deg),
-        center_pos[1]
-        - (thickness / 2.0) * math.cos(deg)
-        + (length / 2.0) * math.sin(deg),
+        center_pos[0] + (length / 2.0) * math.cos(deg) + (thickness / 2.0) * math.sin(deg),
+        center_pos[1] - (thickness / 2.0) * math.cos(deg) + (length / 2.0) * math.sin(deg),
     )
     br = (
-        center_pos[0]
-        - (length / 2.0) * math.cos(deg)
-        + (thickness / 2.0) * math.sin(deg),
-        center_pos[1]
-        - (thickness / 2.0) * math.cos(deg)
-        - (length / 2.0) * math.sin(deg),
+        center_pos[0] - (length / 2.0) * math.cos(deg) + (thickness / 2.0) * math.sin(deg),
+        center_pos[1] - (thickness / 2.0) * math.cos(deg) - (length / 2.0) * math.sin(deg),
     )
 
+    # pygame.gfxdraw.aapolygon(surface, (ul, ur, br, bl), color)
     pygame.draw.aalines(
         surface=surface,
         color=color,
         closed=True,
         points=(ul, ur, br, bl),
     )
+    # pygame.gfxdraw.filled_polygon(surface, (ul, ur, br, bl), color)
+    # equivalent to pygame.gfxdraw.filled_polygon:
     pygame.draw.polygon(
         surface=surface,
         color=color,
@@ -308,16 +279,14 @@ def get_entity_facing_direction(
     """
     # prioritizes vertical animations, flip if statements to get horizontal
     # ones
-    if direction[1]:
-        return Direction.DOWN if direction[1] > 0 else Direction.UP
     if direction[0]:
         return Direction.RIGHT if direction[0] > 0 else Direction.LEFT
+    if direction[1]:
+        return Direction.DOWN if direction[1] > 0 else Direction.UP
     return default_value
 
 
-def rand_circular_pos(
-    center: Coordinate, max_radius: float, min_radius: float
-) -> Coordinate:
+def rand_circular_pos(center: Coordinate, max_radius: float, min_radius: float) -> Coordinate:
     """returns a random position from a circular range"""
     angle = random.random() * 2 * math.pi
     radius = min_radius + ((max_radius - min_radius) * random.random())
@@ -361,33 +330,3 @@ def near_tiles(
 
 def distance(pos1, pos2):
     return ((pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2) ** 0.5
-
-
-def get_outline(
-    surface: pygame.Surface,
-    outline_color: tuple[int, int, int] = (0, 0, 0),
-    resize: bool = False,
-) -> pygame.Surface:
-    mask = pygame.mask.from_surface(surface)
-    colorkey = (255, 255, 255)
-    colorkey = colorkey if outline_color != colorkey else (0, 0, 0)
-    mask_surf = mask.to_surface(setcolor=outline_color, unsetcolor=colorkey)
-    mask_surf.set_colorkey(colorkey)
-
-    if resize:
-        outline = pygame.Surface(
-            (surface.get_width() + 2, surface.get_height() + 2), pygame.SRCALPHA
-        )
-        outline.blit(mask_surf, (2, 1))
-        outline.blit(mask_surf, (0, 1))
-        outline.blit(mask_surf, (1, 2))
-        outline.blit(mask_surf, (1, 0))
-        outline.blit(surface, (1, 1))
-    else:
-        outline = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-        outline.blit(mask_surf, (1, 0))
-        outline.blit(mask_surf, (-1, 0))
-        outline.blit(mask_surf, (0, 1))
-        outline.blit(mask_surf, (0, -1))
-        outline.blit(surface, (0, 0))
-    return outline

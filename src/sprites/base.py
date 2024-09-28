@@ -1,5 +1,4 @@
 from abc import ABC
-from typing import Any
 
 import pygame
 
@@ -16,7 +15,6 @@ class Sprite(pygame.sprite.Sprite):
         groups: tuple[pygame.sprite.Group, ...] | pygame.sprite.Group = None,
         z: int = Layer.MAIN,
         name: str | None = None,
-        custom_properties: dict[str, Any] | None = None,
     ):
         if groups:
             super().__init__(groups)
@@ -27,11 +25,10 @@ class Sprite(pygame.sprite.Sprite):
         self.rect = self.image.get_frect(topleft=pos)
         self.z = z
         self.name = name
-        self.custom_properties: dict[str, Any] = custom_properties or {}
         self.hitbox_rect = self.rect.copy()
 
-    def draw(self, display_surface: pygame.Surface, rect: pygame.Rect, camera):
-        display_surface.blit(self.image, rect)
+    def draw(self, display_surface, offset):
+        display_surface.blit(self.image, self.rect.topleft + offset)
 
 
 class CollideableSprite(Sprite, ABC):

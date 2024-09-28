@@ -1,12 +1,4 @@
 from enum import Enum, IntEnum, StrEnum, nonmember, auto  # noqa
-from random import randint
-
-
-class ZoomState(IntEnum):
-    NOT_ZOOMING = 0
-    ZOOMING_IN = auto()
-    ZOOMING_OUT = auto()
-    ZOOM = auto()
 
 
 class PlayerState(IntEnum):
@@ -38,7 +30,6 @@ class GameState(IntEnum):
     # saves and then sets its current state back to PLAY
     SAVE_AND_RESUME = 9
     INVENTORY = 10
-    OUTGROUP_MENU = 11
 
 
 # NOTE : DO NOT pay attention to anything the IDE might complain about in this class, as the enum generation mechanisms
@@ -130,9 +121,7 @@ class InventoryResource(_SerialisableEnum):
 class FarmingTool(_SerialisableEnum):
     """Notably used to distinguish the different farming tools (including seeds) in-code."""
 
-    _SERIALISABLE_STRINGS = nonmember(
-        ("none", "axe", "hoe", "water", "corn_seed", "tomato_seed")
-    )
+    _SERIALISABLE_STRINGS = nonmember(("none", "axe", "hoe", "water", "corn_seed", "tomato_seed"))
 
     NONE = 0  # Possible placeholder value if needed somewhere
     AXE = 1
@@ -182,12 +171,12 @@ class FarmingTool(_SerialisableEnum):
     def as_inventory_resource(self):
         """Converts self to InventoryResource type if possible.
         (Conversion is possible if self is considered a seed.)"""
-        return self._AS_IRS.get(self, self)  # noqa
+        return self._AS_IRS.get(self, self)
 
     def as_nonseed_inventory_resource(self):
         """Converts self to non-seed InventoryResource type if possible.
         (Conversion is possible if self is considered a seed.)"""
-        return self._AS_NS_IRS.get(self, self)  # noqa
+        return self._AS_NS_IRS.get(self, self)
 
 
 class SeedType(IntEnum):
@@ -202,23 +191,23 @@ class SeedType(IntEnum):
 
     @classmethod
     def from_farming_tool(cls, val: FarmingTool):
-        return cls(cls._AS_FTS.index(val))  # noqa
+        return cls(cls._AS_FTS.index(val))
 
     @classmethod
     def from_inventory_resource(cls, val: InventoryResource):
-        return cls(cls._AS_IRS.index(val))  # noqa
+        return cls(cls._AS_IRS.index(val))
 
     def as_fts(self):
-        return self._AS_FTS[self]  # noqa
+        return self._AS_FTS[self]
 
     def as_ir(self):
-        return self._AS_IRS[self]  # noqa
+        return self._AS_IRS[self]
 
     def as_nonseed_ir(self):
-        return self._AS_NS_IRS[self]  # noqa
+        return self._AS_NS_IRS[self]
 
     def as_plant_name(self):
-        return self._AS_FTS[self].as_serialised_string().removesuffix("_seed")  # noqa
+        return self._AS_FTS[self].as_serialised_string().removesuffix("_seed")
 
 
 class Direction(IntEnum):
@@ -226,29 +215,6 @@ class Direction(IntEnum):
     RIGHT = auto()
     DOWN = auto()
     LEFT = auto()
-    UPLEFT = auto()
-    UPRIGHT = auto()
-    DOWNRIGHT = auto()
-    DOWNLEFT = auto()
-
-    @classmethod
-    def random(cls):
-        return Direction(randint(0, Direction.DOWNLEFT.value))
-
-    def get_opposite(self):
-        return _OPPOSITES[self]  # noqa
-
-
-_OPPOSITES = (
-    Direction.DOWN,
-    Direction.LEFT,
-    Direction.UP,
-    Direction.RIGHT,
-    Direction.DOWNRIGHT,
-    Direction.DOWNLEFT,
-    Direction.UPLEFT,
-    Direction.UPRIGHT,
-)
 
 
 class EntityState(StrEnum):
@@ -266,12 +232,6 @@ class EntityState(StrEnum):
     GOGGLES_IDLE = "goggles_idle"
     GOGGLES_WALK = "goggles_walk"
     GOGGLES_WATER = "goggles_water"
-
-    OUTGROUP_AXE = "outgroup_axe"
-    OUTGROUP_HOE = "outgroup_hoe"
-    OUTGROUP_IDLE = "outgroup_idle"
-    OUTGROUP_WALK = "outgroup_walk"
-    OUTGROUP_WATER = "outgroup_water"
 
     HAT_AXE = "hat_axe"
     HAT_HOE = "hat_hoe"
@@ -309,24 +269,11 @@ class Layer(IntEnum):
     TEXT_BOX = auto()
 
 
-class SpecialObjectLayer(StrEnum):
-    INTERACTIONS = "Interactions"
-    COLLISIONS = "Collisions"
-    TREES = "Trees"
-    PLAYER = "Player"
-    NPCS = "NPCs"
-    ANIMALS = "Animals"
-    CAMERA_TARGETS = "Camera Targets"
-    ZOOM_AREAS = "Zoom Areas"
-    MINIGAME = "Minigame"
-
-
 class Map(StrEnum):
     FARM = "farm"
     NEW_FARM = "farm_new"
     FOREST = "forest"
     TOWN = "town"
-    MINIGAME = "minigame"
 
 
 class StudyGroup(IntEnum):
@@ -335,8 +282,3 @@ class StudyGroup(IntEnum):
     NO_GROUP = 0  # Set at the beginning of the game.
     INGROUP = auto()
     OUTGROUP = auto()
-
-
-class ClockVersion(IntEnum):
-    ANALOG = 0
-    DIGITAL = auto()

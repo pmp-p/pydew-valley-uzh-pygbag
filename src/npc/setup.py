@@ -5,7 +5,6 @@ from pathfinding.finder.a_star import AStarFinder
 from src.npc.bases.chicken_base import ChickenBase
 from src.npc.bases.cow_base import CowBase
 from src.npc.bases.npc_base import NPCBase
-from src.sprites.entities.entity import Entity
 from src.sprites.entities.player import Player
 
 
@@ -14,17 +13,11 @@ class AIData:
     Grid: Grid = None
 
     player: Player = None
-    moving_collideable_objects: list[Entity] = None
 
     setup: bool = False
 
     @classmethod
-    def update(
-        cls,
-        pathfinding_matrix: list[list[int]],
-        player: Player,
-        moving_collideable_objects: list[Entity] = None,
-    ) -> None:
+    def update(cls, pathfinding_matrix: list[list[int]], player: Player) -> None:
         if not cls.setup:
             NPCBase.pf_finder = AStarFinder()
             ChickenBase.pf_finder = AStarFinder(
@@ -44,8 +37,3 @@ class AIData:
             ai.pf_grid = cls.Grid
 
         cls.player = player
-
-        cls.moving_collideable_objects = moving_collideable_objects
-        if cls.moving_collideable_objects is None:
-            cls.moving_collideable_objects = []
-        cls.moving_collideable_objects.append(cls.player)

@@ -68,9 +68,7 @@ class _EventDefinition:
         return f"<EventDefinition(name='{self.__name__}', code={self.code}, {', '.join((f'{attr}:{value}' for attr, value in self.attrs.items()))}>"
 
     def __hash__(self):
-        return hash(
-            (self.__name__, self.code) + tuple(itm for itm in self.attrs.items())
-        )
+        return hash((self.__name__, self.code) + tuple(itm for itm in self.attrs.items()))
 
     @property
     def attrs(self):
@@ -85,9 +83,7 @@ class _EventDefinition:
         given when creating the event type.
         :raise ValueError: if the attribute does not exist for this event type."""
         if attr not in self.attrs:
-            raise ValueError(
-                f"invalid attribute for event type {self.__name__} : '{attr}'"
-            )
+            raise ValueError(f"invalid attribute for event type {self.__name__} : '{attr}'")
         else:
             attr_type = self.attrs[attr]
             if not isinstance(value, getattr(attr_type, "__args__", attr_type)):
@@ -115,14 +111,9 @@ class _EventDefinition:
                 if attr in attrs:
                     # Raise an error if argument is given, but not an instance of
                     # the expected type(s)
-                    if not isinstance(
-                        attrs[attr], getattr(attr_type, "__args__", attr_type)
-                    ):
+                    if not isinstance(attrs[attr], getattr(attr_type, "__args__", attr_type)):
                         typenames = ",".join(
-                            (
-                                tp.__name__
-                                for tp in getattr(attr_type, "__args__", (attr_type,))
-                            )
+                            (tp.__name__ for tp in getattr(attr_type, "__args__", (attr_type,)))
                         )
                         raise TypeError(
                             f"given value ({attrs[attr]}) for attribute {attr}"
@@ -134,10 +125,7 @@ class _EventDefinition:
                 else:
                     if "Optional" in repr(attr_type):
                         pass
-                    elif (
-                        isinstance(attr_type, UnionType)
-                        and NoneType in attr_type.__args__
-                    ):
+                    elif isinstance(attr_type, UnionType) and NoneType in attr_type.__args__:
                         pass
                     elif attr in self.default_values_for_attrs:
                         attrs[attr] = self.default_values_for_attrs[attr]
@@ -147,9 +135,7 @@ class _EventDefinition:
                         )
         else:
             if attrs:
-                raise TypeError(
-                    f"event type '{self.__name__}' does not take any attributes"
-                )
+                raise TypeError(f"event type '{self.__name__}' does not take any attributes")
         return pygame.event.Event(self.code, **attrs)
 
 
@@ -169,9 +155,7 @@ def get_event_def_from_name(name: str) -> _EventDefinition:
     return _EventDefinition.from_name(name)
 
 
-def create_custom_event_type(
-    name: str, **attributes: Union[Type, SpecialForm, UnionType]
-) -> int:
+def create_custom_event_type(name: str, **attributes: Union[Type, SpecialForm, UnionType]) -> int:
     """Register a new event type and its specifications.
 
     :param name: The definition name (will be used in mostly error messages).
@@ -212,5 +196,3 @@ OPEN_INVENTORY = create_custom_event_type("OpenInventory")
 
 DIALOG_SHOW = create_custom_event_type("DIALOG_SHOW", dial=str)
 DIALOG_ADVANCE = create_custom_event_type("DIALOG_ADVANCE")
-
-START_QUAKE = create_custom_event_type("StartQuake", duration=float)

@@ -69,9 +69,7 @@ class Drop(Sprite):
         self.pos = pygame.Vector2(pos)
         # item_pos is the same as pos but will have an offest on the y axies
         self.item_pos = pygame.Vector2(pos)
-        self.target_pos = pygame.Vector2(
-            rand_circular_pos(pos, self.max_radius, self.min_radius)
-        )
+        self.target_pos = pygame.Vector2(rand_circular_pos(pos, self.max_radius, self.min_radius))
         # bounce pos is 70% of the distance to the target pos
         self.bounce_pos = self.item_pos.lerp(self.target_pos, 0.7)
 
@@ -185,31 +183,23 @@ class Drop(Sprite):
     def collision_check(self):
         pass
 
-    def draw(self, screen: pygame.Surface, rect: pygame.Rect, camera):
-        super().draw(screen, rect, camera)
+    def draw(self, screen, camera_offset):
+        super().draw(screen, camera_offset)
         if not self.debug:
             return
-        pygame.draw.circle(
-            screen, "cyan", self.throw_pos + rect.topleft, self.max_radius, 1
-        )
-        pygame.draw.circle(
-            screen, "cyan", self.throw_pos + rect.topleft, self.min_radius, 1
-        )
-        pygame.draw.circle(screen, "brown", self.target_pos + rect.topleft, 3)
-        pygame.draw.circle(screen, "red", self.bounce_pos + rect.topleft, 3)
-        pygame.draw.circle(screen, "pink", self.item_pos + rect.topleft, 3)
-        pygame.draw.rect(screen, "white", (self.hitbox_rect.move(*rect.topleft)), 1)
-        pygame.draw.rect(
-            screen, "gray", (self.player.hitbox_rect.move(*rect.topleft)), 1
-        )
-        pygame.draw.circle(screen, "black", self.pos + rect.topleft, 3)
-        pygame.draw.circle(
-            screen, "yellow", self.player.hitbox_rect.center + rect.topleft, 3
-        )
+        pygame.draw.circle(screen, "cyan", self.throw_pos + camera_offset, self.max_radius, 1)
+        pygame.draw.circle(screen, "cyan", self.throw_pos + camera_offset, self.min_radius, 1)
+        pygame.draw.circle(screen, "brown", self.target_pos + camera_offset, 3)
+        pygame.draw.circle(screen, "red", self.bounce_pos + camera_offset, 3)
+        pygame.draw.circle(screen, "pink", self.item_pos + camera_offset, 3)
+        pygame.draw.rect(screen, "white", (self.hitbox_rect.move(*camera_offset)), 1)
+        pygame.draw.rect(screen, "gray", (self.player.hitbox_rect.move(*camera_offset)), 1)
+        pygame.draw.circle(screen, "black", self.pos + camera_offset, 3)
+        pygame.draw.circle(screen, "yellow", self.player.hitbox_rect.center + camera_offset, 3)
         pygame.draw.circle(
             screen,
             "yellow",
-            self.player.hitbox_rect.center + rect.topleft,
+            self.player.hitbox_rect.center + camera_offset,
             self.pull_radius,
             1,
         )
@@ -232,9 +222,7 @@ class Drop(Sprite):
 
 class DropShadow(Sprite):
     def __init__(self, drop: Drop):
-        surf = pygame.Surface(
-            (drop.rect.width * 0.85, drop.rect.height * 0.55), pygame.SRCALPHA
-        )
+        surf = pygame.Surface((drop.rect.width * 0.85, drop.rect.height * 0.55), pygame.SRCALPHA)
         surf.set_colorkey((0, 0, 0))
         rect = surf.get_frect(topleft=(0, 0))
         pygame.draw.ellipse(surf, (1, 1, 1, 35), rect)

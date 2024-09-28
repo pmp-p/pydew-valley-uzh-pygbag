@@ -14,9 +14,7 @@ class HealthProgressBar:
         self.cat_imgs = []
         for i in range(3):
             img = import_image(f"images/health_bar/health_cat_{i + 1}.png")
-            img = pygame.transform.scale(
-                img, (img.get_width() * 0.7, img.get_height() * 0.7)
-            )
+            img = pygame.transform.scale(img, (img.get_width() * 0.7, img.get_height() * 0.7))
             rect = img.get_rect(midright=(self.pos[0] + 10, self.pos[1] + 20))
             self.cat_imgs.append([img, rect])
         self.curr_cat = 0  # current cat index.

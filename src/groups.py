@@ -1,20 +1,20 @@
 import pygame
 
-from src.camera import Camera
 from src.enums import Layer
+from src.settings import SCREEN_HEIGHT, SCREEN_WIDTH, Coordinate
 
 
 class PersistentSpriteGroup(pygame.sprite.Group):
     _persistent_sprites: list[pygame.sprite.Sprite]
 
-    def __init__(self, *sprites):
+    def __init__(self):
         """
         This Group subclass allows certain Sprites to be added as persistent
         Sprites, which will not be removed when calling Group.empty.
         When needing to remove all Sprites, including persistent Sprites, you
         should call PersistentSpriteGroup.empty_persistent.
         """
-        super().__init__(*sprites)
+        super().__init__()
         self._persistent_sprites = []
 
     def add_persistent(self, *sprites: pygame.sprite.Sprite):
@@ -41,20 +41,19 @@ class PersistentSpriteGroup(pygame.sprite.Group):
 
 
 class AllSprites(PersistentSpriteGroup):
-    def __init__(self, *sprites):
-        super().__init__(*sprites)
+    def __init__(self):
+        super().__init__()
         self.display_surface = pygame.display.get_surface()
         self.offset = pygame.Vector2()
         self.cam_surf = pygame.Surface(self.display_surface.get_size())
 
-    def update_blocked(self, dt: float):
-        for sprite in self:
-            getattr(sprite, "update_blocked", sprite.update)(dt)
+    def draw(self, target_pos: Coordinate):
+        self.offset.x = -(target_pos[0] - SCREEN_WIDTH / 2)
+        self.offset.y = -(target_pos[1] - SCREEN_HEIGHT / 2)
 
-    def draw(self, camera: Camera):
         sorted_sprites = sorted(self.sprites(), key=lambda spr: spr.hitbox_rect.bottom)
 
         for layer in Layer:
             for sprite in sorted_sprites:
                 if sprite.z == layer:
-                    sprite.draw(self.display_surface, camera.apply(sprite), camera)
+                    sprite.draw(self.display_surface, self.offset)

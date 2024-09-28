@@ -1,25 +1,20 @@
+import math
 import warnings
 from collections.abc import Callable
 from typing import Any
 
 import pygame
+import logging
+
+LOG = logging.getLogger(__name__)
+LOG.info("Importing pytmx...")
 from pytmx import TiledElement, TiledMap, TiledObject, TiledObjectGroup, TiledTileLayer
 
-from src.camera.camera_target import CameraTarget
-from src.camera.zoom_area import ZoomArea
-from src.camera.zoom_manager import ZoomManager
-from src.enums import (
-    FarmingTool,
-    InventoryResource,
-    Layer,
-    Map,
-    SpecialObjectLayer,
-    StudyGroup,
-)
-from src.exceptions import GameMapWarning, InvalidMapError
+LOG.info("pytmx imported.")
+
+from src.enums import FarmingTool, InventoryResource, Layer
 from src.groups import AllSprites, PersistentSpriteGroup
 from src.gui.interface.emotes import NPCEmoteManager, PlayerEmoteManager
-from src.gui.scene_animation import SceneAnimation
 from src.map_objects import MapObjects, MapObjectType
 from src.npc.bases.animal import Animal
 from src.npc.behaviour.chicken_behaviour_tree import ChickenBehaviourTree
@@ -32,19 +27,18 @@ from src.npc.chicken import Chicken
 from src.npc.cow import Cow
 from src.npc.npc import NPC
 from src.npc.setup import AIData
-from src.npc.utils import pf_add_matrix_collision
-from src.overlay.soil import SoilManager
-from src.savefile import SaveFile
+from src.overlay.soil import SoilLayer
 from src.settings import (
     ENABLE_NPCS,
     SCALE_FACTOR,
     SCALED_TILE_SIZE,
     SETUP_PATHFINDING,
     TEST_ANIMALS,
+    TILE_SIZE,
 )
 from src.sprites.base import AnimatedSprite, CollideableMapObject, Sprite
+from src.sprites.character import Character
 from src.sprites.drops import DropsManager
-from src.sprites.entities.character import Character
 from src.sprites.entities.player import Player
 from src.sprites.objects.berry_bush import BerryBush
 from src.sprites.objects.tree import Tree
@@ -84,69 +78,6 @@ def _setup_object_layer(
     return objects
 
 
-def _setup_camera_layer(layer: TiledObjectGroup):
-    # BEWARE! THIS FUNCTION IS A GENERATOR!
-    # DO NOT TRY TO USE THIS AS A LIST!
-    """Sets up all camera targets for a cutscene using the layer objects."""
-    targs = sorted(layer, key=lambda targ: targ.properties["targ_id"])
-    for target in targs:
-        target_props = target.properties
-
-        speed_and_pause = {}
-        speed = target_props.get("speed")
-        pause = target_props.get("pause")
-
-        # Fields are private inside CameraTarget,
-        # the only public access to them is through properties.
-        # As CameraTarget is a dataclass, the parameters' names
-        # in its generated __init__ match the field names
-        # (i.e. there HAS to be an underscore when defining these keys
-        # inside this additional keyword argument dictionary
-        # or else when generating the CameraTarget object
-        # Python will raise TypeErrors for unexpected arguments)
-        if speed is not None:
-            speed_and_pause["_speed"] = speed
-        if pause is not None:
-            speed_and_pause["_pause"] = pause
-
-        yield CameraTarget(
-            (target.x * SCALE_FACTOR, target.y * SCALE_FACTOR),
-            target_props["targ_id"],
-            **speed_and_pause,
-        )
-
-
-def _setup_zoom_layer(layer: TiledObjectGroup):
-    """Setup the zoom areas from an object group."""
-    for area_id, obj in enumerate(layer):
-        covered_surface = pygame.FRect(
-            obj.x * SCALE_FACTOR,
-            obj.y * SCALE_FACTOR,
-            obj.width * SCALE_FACTOR,
-            obj.height * SCALE_FACTOR,
-        )
-
-        speed_and_factor = {}
-        obj_props = obj.properties
-        speed = obj_props.get("speed")
-        factor = obj_props.get("factor")
-
-        # Fields are private inside ZoomArea,
-        # the only public access to them is through properties.
-        # As ZoomArea is a dataclass, the parameters' names
-        # in its generated __init__ match the field names
-        # (i.e. there HAS to be an underscore when defining these keys
-        # inside this additional keyword argument dictionary
-        # or else when generating the ZoomArea object
-        # Python will raise TypeErrors for unexpected arguments)
-        if speed is not None:
-            speed_and_factor["_zoom_speed"] = speed
-        if factor is not None:
-            speed_and_factor["_zoom_factor"] = factor
-
-        yield ZoomArea(area_id, covered_surface, **speed_and_factor)
-
-
 def _get_element_property(
     element: TiledElement,
     property_name: str,
@@ -168,12 +99,15 @@ def _get_element_property(
         except Exception as e:
             warnings.warn(
                 f"Property {property_name} with value {prop} is invalid for "
-                f"map element {element}. Full error: {e}\n",
-                GameMapWarning,
+                f"map element {element}. Full error: {e}\n"
             )
 
     if prop is None:
         return default
+
+
+class InvalidMapError(Exception):
+    pass
 
 
 class GameMap:
@@ -207,8 +141,6 @@ class GameMap:
 
     _map_objects: MapObjects
 
-    minigame_layer: TiledObjectGroup | None
-
     # pathfinding
     _pf_matrix: list[list[int]]
 
@@ -223,11 +155,7 @@ class GameMap:
 
     def __init__(
         self,
-        selected_map: Map,
         tilemap: TiledMap,
-        save_file: SaveFile,
-        scene_ani: SceneAnimation,
-        zoom_man: ZoomManager,
         # Sprite groups
         all_sprites: AllSprites,
         collision_sprites: PersistentSpriteGroup,
@@ -242,7 +170,7 @@ class GameMap:
         npc_emote_manager: NPCEmoteManager,
         drops_manager: DropsManager,
         # SoilLayer and Tool applying function for farming NPCs
-        soil_manager: SoilManager,
+        soil_layer: SoilLayer,
         apply_tool: Callable[[FarmingTool, tuple[float, float], Character], None],
         plant_collision: Callable[[Character], None],
         # assets
@@ -268,7 +196,7 @@ class GameMap:
 
         self.drops_manager = drops_manager
 
-        self.soil_manager = soil_manager
+        self.soil_layer = soil_layer
         self.apply_tool = apply_tool
         self.plant_collision = plant_collision
 
@@ -289,25 +217,40 @@ class GameMap:
 
         self._map_objects = MapObjects(self._tilemap)
 
-        self.minigame_layer = None
-
         self.player_spawnpoint = None
         self.player_entry_warps = {}
 
         self.npcs = []
         self.animals = []
 
-        self._setup_layers(save_file, selected_map, scene_ani, zoom_man)
+        self._setup_layers()
 
         if SETUP_PATHFINDING:
-            AIData.update(self._pf_matrix, self.player, [*self.npcs, *self.animals])
+            AIData.update(self._pf_matrix, self.player)
 
             if ENABLE_NPCS:
                 self._setup_emote_interactions()
 
-    @property
-    def size(self):
-        return self._tilemap_scaled_size
+    def _add_pf_matrix_collision(self, pos: tuple[float, float], size: tuple[float, float]):
+        """
+        Add a collision rect to the pathfinding matrix at the given position.
+        The given position will be the topleft corner of the rectangle.
+        The values given to this method should equal to the values as defined
+        in Tiled (scaled up by TILE_SIZE, not scaled up by SCALE_FACTOR)
+        :param pos: position of collision rect (x, y) (rounded-down)
+        :param size: size of collision rect (width, height) (rounded-up)
+        """
+        tile_x = int(pos[0] / TILE_SIZE)
+        tile_y = int(pos[1] / TILE_SIZE)
+        tile_w = math.ceil((pos[0] + size[0]) / TILE_SIZE) - tile_x
+        tile_h = math.ceil((pos[1] + size[1]) / TILE_SIZE) - tile_y
+
+        for w in range(tile_w):
+            for h in range(tile_h):
+                try:
+                    self._pf_matrix[tile_y + h][tile_x + w] = 0
+                except IndexError as e:
+                    warnings.warn(f"Failed adding non-walkable Tile to pathfinding " f"matrix: {e}")
 
     # region tile layer setup methods
     def _setup_base_tile(
@@ -342,11 +285,7 @@ class GameMap:
         self._setup_base_tile(pos, surf, layer, groups)
 
         if SETUP_PATHFINDING:
-            pf_add_matrix_collision(
-                self._pf_matrix,
-                (pos[0] / SCALE_FACTOR, pos[1] / SCALE_FACTOR),
-                surf.get_size(),
-            )
+            self._add_pf_matrix_collision((pos[0] / SCALE_FACTOR, pos[1] / SCALE_FACTOR), surf.size)
 
     def _setup_water_tile(
         self,
@@ -385,9 +324,7 @@ class GameMap:
         """
         size = (obj.width * SCALE_FACTOR, obj.height * SCALE_FACTOR)
         image = pygame.Surface(size)
-        Sprite(pos, image, z=layer, name=name, custom_properties=obj.properties).add(
-            groups
-        )
+        Sprite(pos, image, z=layer, name=name).add(groups)
 
     def _setup_collision_rect(
         self,
@@ -406,13 +343,9 @@ class GameMap:
         Sprite(pos, image, z=layer, name=name).add(groups)
 
         if SETUP_PATHFINDING:
-            pf_add_matrix_collision(
-                self._pf_matrix, (obj.x, obj.y), (obj.width, obj.height)
-            )
+            self._add_pf_matrix_collision((obj.x, obj.y), (obj.width, obj.height))
 
-    def _setup_tree(
-        self, pos: tuple[int, int], obj: TiledObject, object_type: MapObjectType
-    ):
+    def _setup_tree(self, pos: tuple[int, int], obj: TiledObject, object_type: MapObjectType):
         props = obj.properties
         if props.get("size") == "medium" and props.get("breakable"):
             fruit = props.get("fruit_type")
@@ -442,9 +375,7 @@ class GameMap:
                 self.collision_sprites,
             )
 
-    def _setup_bush(
-        self, pos: tuple[int, int], obj: TiledObject, object_type: MapObjectType
-    ):
+    def _setup_bush(self, pos: tuple[int, int], obj: TiledObject, object_type: MapObjectType):
         props = obj.properties
         if props.get("size") == "medium":
             fruit = props.get("fruit_type")
@@ -508,8 +439,7 @@ class GameMap:
                     )
 
             if SETUP_PATHFINDING:
-                pf_add_matrix_collision(
-                    self._pf_matrix,
+                self._add_pf_matrix_collision(
                     (
                         obj.x + object_type.hitbox.x / SCALE_FACTOR,
                         obj.y + object_type.hitbox.y / SCALE_FACTOR,
@@ -543,10 +473,7 @@ class GameMap:
         name = obj.name
         if name == "spawnpoint":
             if self.player_spawnpoint:
-                warnings.warn(
-                    f"Multiple spawnpoints found " f"({self.player_spawnpoint}, {pos})",
-                    GameMapWarning,
-                )
+                warnings.warn(f"Multiple spawnpoints found " f"({self.player_spawnpoint}, {pos})")
             self.player_spawnpoint = pos
         else:
             name = name.split(" ")
@@ -565,56 +492,30 @@ class GameMap:
                         name=warp_map,
                     ).add(self.player_exit_warps)
                 else:
-                    warnings.warn(f'Invalid player warp "{name}"', GameMapWarning)
+                    warnings.warn(f'Invalid player warp "{name}"')
             else:
-                warnings.warn(f'Invalid player warp "{name}"', GameMapWarning)
+                warnings.warn(f'Invalid player warp "{name}"')
 
-    def _setup_npc(self, pos: tuple[int, int], obj: TiledObject, gmap: Map):
+    def _setup_npc(self, pos: tuple[int, int], obj: TiledObject):
         """
         Creates a new NPC sprite at the given position
-
-        TODO: The NPCs study_group attribute currently only limits their farming area,
-         but does not restrict the NPC from moving into another groups farming area.
-         Although this should only happen if every single Tile of the NPCs designated
-         farming area is planted and watered, we should keep this in mind and perhaps
-         actually restrict its movable area, or make sure that a day does not last long
-         enough after a farming area has been fully watered.
         """
-
-        study_group = StudyGroup.NO_GROUP
-        group = obj.properties.get("group")
-        if group is None:
-            warnings.warn(
-                f"NPC with ID {obj.id} has no group assigned to it", GameMapWarning
-            )
-        else:
-            try:
-                study_group = StudyGroup[group]
-            except KeyError:
-                warnings.warn(
-                    f"NPC with ID {obj.id} has an invalid group '{group}' assigned to "
-                    f"it",
-                    GameMapWarning,
-                )
-
         npc = NPC(
             pos=pos,
             assets=ENTITY_ASSETS.RABBIT,
             groups=(self.all_sprites, self.collision_sprites),
             collision_sprites=self.collision_sprites,
-            study_group=study_group,
             apply_tool=self.apply_tool,
             plant_collision=self.plant_collision,
-            soil_manager=self.soil_manager,
+            soil_layer=self.soil_layer,
             emote_manager=self.npc_emote_manager,
             tree_sprites=self.tree_sprites,
         )
-        npc.teleport(pos)
         behaviour = obj.properties.get("behaviour")
-        if behaviour != "Woodcutting" and gmap == Map.NEW_FARM:
-            npc.conditional_behaviour_tree = NPCBehaviourTree.Farming
-        else:
+        if behaviour == "Woodcutting":
             npc.conditional_behaviour_tree = NPCBehaviourTree.Woodcutting
+        else:
+            npc.conditional_behaviour_tree = NPCBehaviourTree.Farming
         return npc
 
     def _setup_animal(self, pos: tuple[int, int], obj: TiledObject):
@@ -624,7 +525,6 @@ class GameMap:
         "Chicken" will create Chickens, objects that are named "Cow" will
         create Cows.
         """
-        animal = None
         if obj.name == "Chicken":
             animal = Chicken(
                 pos=pos,
@@ -633,6 +533,7 @@ class GameMap:
                 collision_sprites=self.collision_sprites,
             )
             animal.conditional_behaviour_tree = ChickenBehaviourTree.Wander
+            return animal
         elif obj.name == "Cow":
             animal = Cow(
                 pos=pos,
@@ -642,50 +543,22 @@ class GameMap:
             )
             animal.conditional_behaviour_tree = CowConditionalBehaviourTree.Wander
             animal.continuous_behaviour_tree = CowContinuousBehaviourTree.Flee
-
-        if animal is not None:
-            animal.teleport(pos)
             return animal
         else:
-            warnings.warn(
-                f'Malformed animal object name "{obj.name}" in tilemap', GameMapWarning
-            )
+            warnings.warn(f'Malformed animal object name "{obj.name}" in tilemap')
 
     # endregion
 
-    def _setup_layers(
-        self,
-        save_file: SaveFile,
-        gmap: Map,
-        scene_ani: SceneAnimation,
-        zoom_man: ZoomManager,
-    ):
+    def _setup_layers(self):
         """
         Iterates over all map layers, updates the GameMap state and creates
         all Sprites for the map.
         """
-
-        # We clear the target data first so that the cutscene from the previous
-        # room doesn't play again if the current one
-        # doesn't have any camera targets
-        scene_ani.reset()
-        scene_ani.clear()
-
-        # Clearing the zoom manager in advance, in case no zoom areas exist for the current map
-        zoom_man.clear()
-
         for tilemap_layer in self._tilemap.layers:
             if isinstance(tilemap_layer, TiledTileLayer):
                 # create soil layer
-                if tilemap_layer.name == "farmable_ingroup":
-                    self.soil_manager.load_area(
-                        StudyGroup.INGROUP, tilemap_layer, save_file.soil_data
-                    )
-                    continue
-                elif tilemap_layer.name == "farmable_outgroup":
-                    self.soil_manager.load_area(
-                        StudyGroup.OUTGROUP, tilemap_layer, save_file.soil_data
-                    )
+                if tilemap_layer.name == "Farmable":
+                    self.soil_layer.create_soil_tiles(tilemap_layer)
                     continue
                 elif tilemap_layer.name == "Border":
                     _setup_tile_layer(
@@ -730,77 +603,69 @@ class GameMap:
                     )
 
             elif isinstance(tilemap_layer, TiledObjectGroup):
-                match tilemap_layer.name:
-                    case SpecialObjectLayer.MINIGAME:
-                        self.minigame_layer = tilemap_layer
-                    case SpecialObjectLayer.INTERACTIONS:
-                        _setup_object_layer(
-                            tilemap_layer,
-                            lambda pos, obj: self._setup_base_object(
-                                pos,
-                                obj,
-                                Layer.MAIN,
-                                self.interaction_sprites,
-                                name=obj.name,
-                            ),
-                        )
-                    case SpecialObjectLayer.COLLISIONS:
-                        _setup_object_layer(
-                            tilemap_layer,
-                            lambda pos, obj: self._setup_collision_rect(
-                                pos, obj, Layer.MAIN, self.collision_sprites
-                            ),
-                        )
-                    case SpecialObjectLayer.PLAYER:
-                        _setup_object_layer(
-                            tilemap_layer,
-                            lambda pos, obj: self._setup_player_warp(pos, obj),
-                        )
+                if tilemap_layer.name == "Interactions":
+                    _setup_object_layer(
+                        tilemap_layer,
+                        lambda pos, obj: self._setup_base_object(
+                            pos,
+                            obj,
+                            Layer.MAIN,
+                            self.interaction_sprites,
+                            name=obj.name,
+                        ),
+                    )
+                elif tilemap_layer.name == "Collisions":
+                    _setup_object_layer(
+                        tilemap_layer,
+                        lambda pos, obj: self._setup_collision_rect(
+                            pos, obj, Layer.MAIN, self.collision_sprites
+                        ),
+                    )
+                elif tilemap_layer.name == "Player":
+                    _setup_object_layer(
+                        tilemap_layer,
+                        lambda pos, obj: self._setup_player_warp(pos, obj),
+                    )
 
-                        if not self.player_entry_warps and not self.player_spawnpoint:
-                            raise InvalidMapError(
-                                "No Player warp point could be found in the map's "
-                                "Player layer"
-                            )
-                    case SpecialObjectLayer.NPCS:
-                        if not ENABLE_NPCS:
-                            continue
-                        self.npcs = _setup_object_layer(
-                            tilemap_layer,
-                            lambda pos, obj: self._setup_npc(pos, obj, gmap),
+                    if not self.player_entry_warps and not self.player_spawnpoint:
+                        raise InvalidMapError(
+                            "No Player warp point could be found in the map's " "Player layer"
                         )
-                    case SpecialObjectLayer.ANIMALS:
-                        if not TEST_ANIMALS:
-                            continue
+                elif tilemap_layer.name == "NPCs":
+                    if ENABLE_NPCS:
+                        self.npcs = _setup_object_layer(
+                            tilemap_layer, lambda pos, obj: self._setup_npc(pos, obj)
+                        )
+                    else:
+                        continue
+                elif tilemap_layer.name == "Animals":
+                    if TEST_ANIMALS:
                         self.animals = _setup_object_layer(
                             tilemap_layer, lambda pos, obj: self._setup_animal(pos, obj)
                         )
-                    case SpecialObjectLayer.CAMERA_TARGETS:
-                        scene_ani.set_target_points(_setup_camera_layer(tilemap_layer))
-                    case SpecialObjectLayer.ZOOM_AREAS:
-                        zoom_man.set_zoom_areas(_setup_zoom_layer(tilemap_layer))
-                    case _:
-                        # set layer if defined in the TileLayer properties
-                        layer = _get_element_property(
-                            tilemap_layer, "layer", lambda prop: Layer[prop], Layer.MAIN
-                        )
+                    else:
+                        continue
+                else:
+                    # set layer if defined in the TileLayer properties
+                    layer = _get_element_property(
+                        tilemap_layer, "layer", lambda prop: Layer[prop], Layer.MAIN
+                    )
 
-                        # decorative objects will be created as collideable object
-                        _setup_object_layer(
-                            tilemap_layer,
-                            lambda pos, obj, obj_layer=layer: self._setup_map_object(
-                                pos,
-                                obj,
-                                obj_layer,
-                            ),
-                        )
+                    # decorative objects will be created as collideable object
+                    _setup_object_layer(
+                        tilemap_layer,
+                        lambda pos, obj, obj_layer=layer: self._setup_map_object(
+                            pos,
+                            obj,
+                            obj_layer,
+                        ),
+                    )
 
             else:
                 # This should be the case when an Image or Group layer is found
                 warnings.warn(
-                    f"Support for {tilemap_layer.__class__.__name__} layers is not (yet) "
-                    f"implemented! Layer {tilemap_layer.name} will be skipped",
-                    GameMapWarning,
+                    f"Support for {type(tilemap_layer)} layers is not (yet) "
+                    f"implemented! Layer {tilemap_layer.name} will be skipped"
                 )
 
     def _setup_emote_interactions(self):

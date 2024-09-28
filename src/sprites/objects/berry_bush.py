@@ -52,9 +52,7 @@ class BerryBush(CollideableMapObject):
                 if random.randint(0, 10) < 4:
                     x = pos[0] + self.rect.left
                     y = pos[1] + self.rect.top
-                    Sprite((x, y), self.fruit_surf, (), Layer.FRUIT).add(
-                        self.fruit_sprites
-                    )
+                    self.fruit_sprites.add(Sprite((x, y), self.fruit_surf, (), Layer.FRUIT))
 
     def update(self, dt):
         self.timer.update()
@@ -74,7 +72,7 @@ class BerryBush(CollideableMapObject):
                 fruit.image = generate_particle_surf(fruit.image)
         self.timer.activate()
 
-    def draw(self, display_surface: pygame.Surface, rect: pygame.Rect, camera):
-        super().draw(display_surface, rect, camera)
+    def draw(self, display_surface, offset):
+        super().draw(display_surface, offset)
         for fruit in self.fruit_sprites:
-            fruit.draw(display_surface, camera.apply(fruit), camera)
+            fruit.draw(display_surface, offset)
