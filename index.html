@@ -1,10 +1,9 @@
-<!-- copied from https://github.com/pygame-web/pygbag/blob/main/static/default.tmpl -->
 <html lang="en-us"><script src="https://pygame-web.github.io/pygbag/0.0/pythons.js" type=module id=site data-LINES=57 data-CONSOLE=25 data-python=python3.13 data-os=vtx,fs,snd,gui async defer>#<!--
 
 print("""
 Loading pydew-valley-uzh-pygbag from pydew-valley-uzh-pygbag.apk
     Pygbag Version : 0.0.0
-    Template Version : 0.9.1
+    Template Version : 0.9.2
     Python  : 3.13
     CDN URL : https://pygame-web.github.io/pygbag/0.0/
     Screen  : 1280x720
@@ -186,8 +185,10 @@ async def custom_site():
 
     await shell.runpy(main, callback=ui_callback)
 
+
+
 import asyncio
-print("DEBUG OUTPUT")
+
 asyncio.run( custom_site() )
 
 
@@ -388,11 +389,11 @@ height="1px"
             <div id="info" class="trinfo"></div>
 
             <iframe id="iframe" class="framed" name="iframe"
-                width="470px" height="90%"
-                allowtransparency="true"
-                style="z-index: 10;"
-                style="background: #FFFFFF;"
-                frameborder="1"
+width="470px" height="90%"
+allowtransparency="true"
+style="z-index: 10;"
+style="background: #FFFFFF;"
+frameborder="1"
                 allowfullscreen="true"
                 webkitallowfullscreen="true"
                 msallowfullscreen="true"
@@ -421,7 +422,6 @@ height="1px"
     async function custom_onload(debug_hidden) {
         // this is called before anything python is loaded
         // make your js customization here
-        console.log("JSDEBUG: custom_onload()", "debug_hidden?=", debug_hidden)
         console.log(__FILE__, "custom_onload")
 
         pyconsole.hidden = debug_hidden
@@ -433,14 +433,12 @@ height="1px"
     }
 
     function custom_prerun(){
-        console.log("JSDEBUG: custom_prerun()")
         // no python main and no (MEMFS + VFS) yet.
         console.log(__FILE__, "custom_prerun")
 
     }
 
     function custom_postrun(){
-        console.log("JSDEBUG: custom_posrtun()")
         // python main and no VFS filesystem yet.
         console.log(__FILE__, "custom_postrun")
 
@@ -455,7 +453,6 @@ height="1px"
     }
 
     function debug() {
-        console.log("JSDEBUG: debug()")
         // allow to gain access to dev tools from js console
         // but only on desktop. difficult to reach when in iframe
         python.config.debug = true
@@ -465,12 +462,10 @@ height="1px"
     }
 
     function info_inline(data){
-        console.log("info_inline()", data)
         document.getElementById("info").innerHTML = data
     }
 
     function info_online(url) {
-        console.log("JSDEBUG: info_online()", url)
         // display info about current APK
         fetch( url /*, options */)
             .then((response) => response.text())
@@ -483,7 +478,6 @@ height="1px"
     }
 
     function frame_online(url) {
-        console.log("JSDEBUG: frame_online()", url)
         window.frames["iframe"].location = url;
     }
 
